@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#ffd6e7"><title>Танцующая крыса</title>
+<style>
+:root{--bg:#ffd6e7;--bg2:#ff8fc0;--ink:#4a0f2e;--btn:#e0156f;--btnink:#fff}
+*{box-sizing:border-box}html,body{height:100%;margin:0}body{font-family:"Trebuchet MS",sans-serif;color:var(--ink);background:radial-gradient(circle at 50% 60%,var(--bg2),var(--bg));overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+.stage{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;perspective:900px;position:relative;min-height:0}.floor{position:absolute;bottom:2%;width:40vmin;height:5vmin;border-radius:50%;background:#0003;filter:blur(6px);transition:transform .1s}
+#rat{font-size:min(65vw,55vh);line-height:1;transform-origin:50% 95%;will-change:transform;filter:drop-shadow(0 8px 6px #0002);user-select:none}
+.panel{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:center;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));width:100%}
+button{font:inherit;font-weight:700;background:var(--btn);color:var(--btnink);border:0;border-radius:999px;padding:12px 26px}label{display:flex;align-items:center;gap:8px;font-size:15px}input[type=range]{width:140px;accent-color:var(--btn)}select{font:inherit;padding:8px;border-radius:8px;border:2px solid var(--btn);background:transparent;color:var(--ink)}
+</style></head><body><div class="stage"><div class="floor" id="floor"></div><div id="rat" role="img" aria-label="Танцующая розовая крыса">🐀</div></div>
+<div class="panel"><button id="go" aria-pressed="false">Танцевать</button><label>Темп <input id="bpm" type="range" min="70" max="200" value="128"><output id="bpmv">128</output></label><label>Стиль <select id="style"><option value="0">Качалка</option><option value="1">Прыжки</option><option value="2">Твист</option><option value="3">Хаос</option></select></label></div>
+<script>
+const rat=document.getElementById('rat'),floor=document.getElementById('floor'),go=document.getElementById('go'),bpm=document.getElementById('bpm'),bpmv=document.getElementById('bpmv'),sty=document.getElementById('style');
+let on=false,ac=null,nextT=0,beat=0,t0=0;const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;bpm.oninput=()=>bpmv.textContent=bpm.value;
+function kick(t,acc){const o=ac.createOscillator(),g=ac.createGain();o.frequency.setValueAtTime(acc?170:140,t);o.frequency.exponentialRampToValueAtTime(40,t+.15);g.gain.setValueAtTime(.9,t);g.gain.exponentialRampToValueAtTime(.001,t+.25);o.connect(g).connect(ac.destination);o.start(t);o.stop(t+.3)}
+function hat(t){const n=ac.createBufferSource(),b=ac.createBuffer(1,2205,44100),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length);n.buffer=b;const f=ac.createBiquadFilter();f.type='highpass';f.frequency.value=7000;const g=ac.createGain();g.gain.value=.25;n.connect(f).connect(g).connect(ac.destination);n.start(t)}
+function bass(t,fr){const o=ac.createOscillator(),g=ac.createGain();o.type='square';o.frequency.value=fr;g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.001,t+.2);o.connect(g).connect(ac.destination);o.start(t);o.stop(t+.22)}
+const line=[55,55,82.4,55,65.4,65.4,98,73.4];function sched(){const sp=60/bpm.value/2;while(nextT<ac.currentTime+.15){if(beat%2===0)kick(nextT,beat%8===0);else hat(nextT);if(beat%2===0)bass(nextT,line[(beat/2)%8]);beat++;nextT+=sp}}
+function frame(){if(!on)return;sched();const period=60/bpm.value,p=(ac.currentTime-t0)/period,ph=p*Math.PI*2,s=+sty.value,k=reduce?.25:1;let x=0,y=0,r=0,sx=1,sy=1,ry=0;const hit=Math.pow(Math.abs(Math.sin(p*Math.PI)),3);
+if(s===0){r=Math.sin(ph/2)*10*k;x=Math.sin(ph/2)*4*k;sy=1+hit*.03*k;sx=1-hit*.02*k}else if(s===1){y=-hit*14*k;sy=1+hit*.06*k;sx=1-hit*.04*k;r=Math.sin(ph/2)*4*k}else if(s===2){ry=Math.sin(ph/2)*35*k;r=Math.sin(ph)*5*k;y=-hit*4*k}else{r=Math.sin(ph*1.5)*14*k;x=Math.sin(ph/2)*8*k;y=-Math.abs(Math.sin(ph*.75))*10*k;ry=Math.sin(ph/3)*25*k;sx=1+Math.sin(ph*2)*.04*k;sy=1-Math.sin(ph*2)*.04*k}
+rat.style.transform=`translate(${x}vmin,${y}vmin) rotate(${r}deg) rotateY(${ry}deg) scale(${sx},${sy})`;floor.style.transform=`translateX(${x}vmin) scale(${1-y*.01})`;requestAnimationFrame(frame)}
+go.onclick=()=>{if(!on){ac=ac||new(window.AudioContext||window.webkitAudioContext)();ac.resume();nextT=ac.currentTime+.05;t0=nextT;beat=0;on=true;go.textContent='Стоп';go.setAttribute('aria-pressed','true');requestAnimationFrame(frame)}else{on=false;go.textContent='Танцевать';go.setAttribute('aria-pressed','false');rat.style.transform='';floor.style.transform=''}};
+</script></body></html>
