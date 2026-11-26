@@ -81,6 +81,7 @@ button{font:inherit;font-weight:700;background:var(--btn);color:var(--btnink);bo
       introTimer = setTimeout(() => {
         intro.style.display = 'none';
         if (savedBpm !== null) { bpm.value = savedBpm; bpmv.textContent = savedBpm; savedBpm = null; }
+        sty.value = '1'; // После GIF крыса переключается на прыжки
       }, 2000);
       go.textContent = 'Стоп';
       go.setAttribute('aria-pressed', 'true');
