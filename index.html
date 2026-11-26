@@ -10,12 +10,120 @@ button{font:inherit;font-weight:700;background:var(--btn);color:var(--btnink);bo
 </style></head><body><div class="stage"><div class="floor" id="floor"></div><img id="rat" src="https://raw.githubusercontent.com/litvinov57alex-bot/dancing-rat-telegram/main/rat.png" alt="Исходная розовая крыса с человеческим лицом"></div>
 <div class="panel"><button id="go" aria-pressed="false">Танцевать</button><audio id="song" preload="auto"><source src="./song.mp3" type="audio/mpeg"></audio><label>Темп <input id="bpm" type="range" min="70" max="200" value="128"><output id="bpmv">128</output></label><label>Стиль <select id="style"><option value="0">Качалка</option><option value="1">Прыжки</option><option value="2">Твист</option><option value="3">Хаос</option></select></label></div>
 <script>
-const rat=document.getElementById('rat'),floor=document.getElementById('floor'),go=document.getElementById('go'),song=document.getElementById('song'),bpm=document.getElementById('bpm'),bpmv=document.getElementById('bpmv'),sty=document.getElementById('style');
-let on=false,t0=0,audioCtx=null,analyser=null,source=null,freqData=null,noiseFloor=0,beatPulse=0;const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;bpm.oninput=()=>bpmv.textContent=bpm.value;
-function setupAudio(){if(analyser)return;audioCtx=new(window.AudioContext||window.webkitAudioContext)();analyser=audioCtx.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=.65;freqData=new Uint8Array(analyser.frequencyBinCount);source=audioCtx.createMediaElementSource(song);source.connect(analyser);analyser.connect(audioCtx.destination);}
+(() => {
+  const rat = document.getElementById('rat');
+  const floor = document.getElementById('floor');
+  const go = document.getElementById('go');
+  const song = document.getElementById('song');
+  const bpm = document.getElementById('bpm');
+  const bpmv = document.getElementById('bpmv');
+  const sty = document.getElementById('style');
+  let dancing = false;
+  let startedAt = 0;
+  let audioCtx = null;
+  let analyser = null;
+  let audioSource = null;
+  let freqData = null;
+  let noiseFloor = 0;
+  let beatPulse = 0;
+  const reducedMotion = window.matchMedia
+    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    : false;
 
-function frame(){if(!on)return;if(analyser){analyser.getByteFrequencyData(freqData);let low=0;for(let i=1;i<9;i++)low+=freqData[i];low/=8;noiseFloor=noiseFloor*.96+low*.04;beatPulse=Math.max(0,Math.min(1,(low-noiseFloor-3)/24));}const period=60/bpm.value,p=(performance.now()-t0)/1000/period,ph=p*Math.PI*2,s=+sty.value,k=reduce?.25:1;let x=0,y=0,r=0,sx=1,sy=1,ry=0;const hit=Math.max(Math.pow(Math.abs(Math.sin(p*Math.PI)),3),beatPulse);
-if(s===0){r=Math.sin(ph/2)*10*k;x=Math.sin(ph/2)*4*k;sy=1+hit*.03*k;sx=1-hit*.02*k}else if(s===1){y=-hit*14*k;sy=1+hit*.06*k;sx=1-hit*.04*k;r=Math.sin(ph/2)*4*k}else if(s===2){ry=Math.sin(ph/2)*35*k;r=Math.sin(ph)*5*k;y=-hit*4*k}else{r=Math.sin(ph*1.5)*14*k;x=Math.sin(ph/2)*8*k;y=-Math.abs(Math.sin(ph*.75))*10*k;ry=Math.sin(ph/3)*25*k;sx=1+Math.sin(ph*2)*.04*k;sy=1-Math.sin(ph*2)*.04*k}
-rat.style.transform=`translate(${x}vmin,${y}vmin) rotate(${r}deg) rotateY(${ry}deg) scale(${sx},${sy})`;floor.style.transform=`translateX(${x}vmin) scale(${1-y*.01})`;requestAnimationFrame(frame)}
-go.onclick=()=>{if(!on){try{setupAudio();if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume().catch(()=>{});}catch(err){console.warn('Анализ звука недоступен:',err);analyser=null;}t0=performance.now();on=true;go.textContent='Стоп';go.setAttribute('aria-pressed','true');song.currentTime=0;song.play().catch(err=>console.warn('Не удалось запустить song.mp3:',err));requestAnimationFrame(frame)}else{on=false;go.textContent='Танцевать';go.setAttribute('aria-pressed','false');song.pause();song.currentTime=0;rat.style.transform='';floor.style.transform=''}};
+  bpm.addEventListener('input', () => { bpmv.textContent = bpm.value; });
+
+  function enableAudioAnalysis() {
+    if (analyser) return;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    audioCtx = new AudioContextClass();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+    analyser.smoothingTimeConstant = 0.65;
+    freqData = new Uint8Array(analyser.frequencyBinCount);
+    audioSource = audioCtx.createMediaElementSource(song);
+    audioSource.connect(analyser);
+    analyser.connect(audioCtx.destination);
+  }
+
+  function animate() {
+    if (!dancing) return;
+    if (analyser && freqData) {
+      analyser.getByteFrequencyData(freqData);
+      let low = 0;
+      for (let i = 1; i < 9; i++) low += freqData[i];
+      low /= 8;
+      noiseFloor = noiseFloor * 0.96 + low * 0.04;
+      beatPulse = Math.max(0, Math.min(1, (low - noiseFloor - 3) / 24));
+    }
+
+    const period = 60 / Number(bpm.value || 128);
+    const p = (performance.now() - startedAt) / 1000 / period;
+    const phase = p * Math.PI * 2;
+    const style = Number(sty.value);
+    const k = reducedMotion ? 0.25 : 1;
+    let x = 0, y = 0, rotation = 0, sx = 1, sy = 1, ry = 0;
+    const hit = Math.max(Math.pow(Math.abs(Math.sin(p * Math.PI)), 3), beatPulse);
+
+    if (style === 0) {
+      rotation = Math.sin(phase / 2) * 10 * k;
+      x = Math.sin(phase / 2) * 4 * k;
+      sy = 1 + hit * 0.03 * k;
+      sx = 1 - hit * 0.02 * k;
+    } else if (style === 1) {
+      y = -hit * 14 * k;
+      sy = 1 + hit * 0.06 * k;
+      sx = 1 - hit * 0.04 * k;
+      rotation = Math.sin(phase / 2) * 4 * k;
+    } else if (style === 2) {
+      ry = Math.sin(phase / 2) * 35 * k;
+      rotation = Math.sin(phase) * 5 * k;
+      y = -hit * 4 * k;
+    } else {
+      rotation = Math.sin(phase * 1.5) * 14 * k;
+      x = Math.sin(phase / 2) * 8 * k;
+      y = -Math.abs(Math.sin(phase * 0.75)) * 10 * k;
+      ry = Math.sin(phase / 3) * 25 * k;
+      sx = 1 + Math.sin(phase * 2) * 0.04 * k;
+      sy = 1 - Math.sin(phase * 2) * 0.04 * k;
+    }
+
+    rat.style.transform = 'translate(' + x + 'vmin,' + y + 'vmin) rotate(' + rotation + 'deg) rotateY(' + ry + 'deg) scale(' + sx + ',' + sy + ')';
+    floor.style.transform = 'translateX(' + x + 'vmin) scale(' + (1 - y * 0.01) + ')';
+    window.requestAnimationFrame(animate);
+  }
+
+  go.addEventListener('click', () => {
+    if (!dancing) {
+      startedAt = performance.now();
+      dancing = true;
+      go.textContent = 'Стоп';
+      go.setAttribute('aria-pressed', 'true');
+
+      try {
+        enableAudioAnalysis();
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+      } catch (error) {
+        console.warn('Анализ звука недоступен:', error);
+      }
+
+      try {
+        song.currentTime = 0;
+        const playback = song.play();
+        if (playback && playback.catch) playback.catch(error => console.warn('Не удалось запустить song.mp3:', error));
+      } catch (error) {
+        console.warn('Не удалось запустить song.mp3:', error);
+      }
+      window.requestAnimationFrame(animate);
+    } else {
+      dancing = false;
+      go.textContent = 'Танцевать';
+      go.setAttribute('aria-pressed', 'false');
+      song.pause();
+      song.currentTime = 0;
+      rat.style.transform = '';
+      floor.style.transform = '';
+    }
+  });
+})();
 </script></body></html>
