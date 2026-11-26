@@ -8,62 +8,32 @@
 audio{display:none}.panel{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:center;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));width:100%}
 button{font:inherit;font-weight:700;background:var(--btn);color:var(--btnink);border:0;border-radius:999px;padding:12px 26px}label{display:flex;align-items:center;gap:8px;font-size:15px}input[type=range]{width:140px;accent-color:var(--btn)}select{font:inherit;padding:8px;border-radius:8px;border:2px solid var(--btn);background:transparent;color:var(--ink)}
 </style></head><body><div class="stage"><div class="floor" id="floor"></div><img id="rat" src="https://raw.githubusercontent.com/litvinov57alex-bot/dancing-rat-telegram/main/rat.png" alt="Исходная розовая крыса с человеческим лицом"></div>
-<div class="panel"><button id="go" aria-pressed="false">Танцевать</button><audio id="song" preload="auto"><source src="./song.mp3" type="audio/mpeg"></audio><label>Темп <input id="bpm" type="range" min="70" max="200" value="128"><output id="bpmv">128</output></label><label>Стиль <select id="style"><option value="0">Качалка</option><option value="1">Прыжки</option><option value="2">Твист</option><option value="3">Хаос</option></select></label></div>
+<div class="panel"><button id="go" aria-pressed="false">Танцевать</button><label>Темп <input id="bpm" type="range" min="70" max="200" value="128"><output id="bpmv">128</output></label><label>Стиль <select id="style"><option value="0">Качалка</option><option value="1">Прыжки</option><option value="2">Твист</option><option value="3">Хаос</option></select></label></div>
 <script>
 (() => {
   const rat = document.getElementById('rat');
   const floor = document.getElementById('floor');
   const go = document.getElementById('go');
-  const song = document.getElementById('song');
   const bpm = document.getElementById('bpm');
   const bpmv = document.getElementById('bpmv');
   const sty = document.getElementById('style');
   let dancing = false;
   let startedAt = 0;
-  let audioCtx = null;
-  let analyser = null;
-  let audioSource = null;
-  let freqData = null;
-  let noiseFloor = 0;
-  let beatPulse = 0;
   const reducedMotion = window.matchMedia
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
     : false;
 
   bpm.addEventListener('input', () => { bpmv.textContent = bpm.value; });
 
-  function enableAudioAnalysis() {
-    if (analyser) return;
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return;
-    audioCtx = new AudioContextClass();
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 1024;
-    analyser.smoothingTimeConstant = 0.65;
-    freqData = new Uint8Array(analyser.frequencyBinCount);
-    audioSource = audioCtx.createMediaElementSource(song);
-    audioSource.connect(analyser);
-    analyser.connect(audioCtx.destination);
-  }
-
   function animate() {
     if (!dancing) return;
-    if (analyser && freqData) {
-      analyser.getByteFrequencyData(freqData);
-      let low = 0;
-      for (let i = 1; i < 9; i++) low += freqData[i];
-      low /= 8;
-      noiseFloor = noiseFloor * 0.96 + low * 0.04;
-      beatPulse = Math.max(0, Math.min(1, (low - noiseFloor - 3) / 24));
-    }
-
     const period = 60 / Number(bpm.value || 128);
     const p = (performance.now() - startedAt) / 1000 / period;
     const phase = p * Math.PI * 2;
     const style = Number(sty.value);
     const k = reducedMotion ? 0.25 : 1;
     let x = 0, y = 0, rotation = 0, sx = 1, sy = 1, ry = 0;
-    const hit = Math.max(Math.pow(Math.abs(Math.sin(p * Math.PI)), 3), beatPulse);
+    const hit = Math.pow(Math.abs(Math.sin(p * Math.PI)), 3);
 
     if (style === 0) {
       rotation = Math.sin(phase / 2) * 10 * k;
@@ -100,27 +70,11 @@ button{font:inherit;font-weight:700;background:var(--btn);color:var(--btnink);bo
       go.textContent = 'Стоп';
       go.setAttribute('aria-pressed', 'true');
 
-      try {
-        enableAudioAnalysis();
-        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-      } catch (error) {
-        console.warn('Анализ звука недоступен:', error);
-      }
-
-      try {
-        song.currentTime = 0;
-        const playback = song.play();
-        if (playback && playback.catch) playback.catch(error => console.warn('Не удалось запустить song.mp3:', error));
-      } catch (error) {
-        console.warn('Не удалось запустить song.mp3:', error);
-      }
       window.requestAnimationFrame(animate);
     } else {
       dancing = false;
       go.textContent = 'Танцевать';
       go.setAttribute('aria-pressed', 'false');
-      song.pause();
-      song.currentTime = 0;
       rat.style.transform = '';
       floor.style.transform = '';
     }
