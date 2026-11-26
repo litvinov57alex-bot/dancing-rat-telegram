@@ -1,78 +1,20 @@
 <!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#ffd6e7"><title>Танцующая крыса</title>
 <style>
-:root{--bg:#ffffff;--bg2:#ffffff;--ink:#4a0f2e;--btn:#e0156f;--btnink:#fff}
+:root{--bg:#ffd6e7;--bg2:#ff8fc0;--ink:#4a0f2e;--btn:#e0156f;--btnink:#fff}
 *{box-sizing:border-box}html,body{height:100%;margin:0}body{font-family:"Trebuchet MS",sans-serif;color:var(--ink);background:radial-gradient(circle at 50% 60%,var(--bg2),var(--bg));overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
 .stage{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;perspective:900px;position:relative;min-height:0}.floor{position:absolute;bottom:2%;width:40vmin;height:5vmin;border-radius:50%;background:#0003;filter:blur(6px);transition:transform .1s}
 #rat{height:78%;max-height:80vh;width:auto;max-width:90vw;object-fit:contain;transform-origin:50% 95%;will-change:transform;user-select:none}
 audio{display:none}.panel{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:center;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));width:100%}
 button{font:inherit;font-weight:700;background:var(--btn);color:var(--btnink);border:0;border-radius:999px;padding:12px 26px}label{display:flex;align-items:center;gap:8px;font-size:15px}input[type=range]{width:140px;accent-color:var(--btn)}select{font:inherit;padding:8px;border-radius:8px;border:2px solid var(--btn);background:transparent;color:var(--ink)}
 </style></head><body><div class="stage"><div class="floor" id="floor"></div><img id="rat" src="https://raw.githubusercontent.com/litvinov57alex-bot/dancing-rat-telegram/main/rat.png" alt="Исходная розовая крыса с человеческим лицом"></div>
-<div class="panel"><button id="go" aria-pressed="false">Танцевать</button><audio id="song" preload="auto"><source src="./song.mp3" type="audio/mpeg"></audio><label>Песня <select id="track"><option value="original">Исходная песня</option><option value="device">Выбрать MP3 с устройства…</option></select></label><input id="fileSong" type="file" accept="audio/mpeg,audio/mp3,audio/*" hidden><label>Темп <input id="bpm" type="range" min="70" max="200" value="128"><output id="bpmv">128</output></label><label>Стиль <select id="style"><option value="0">Качалка</option><option value="1">Прыжки</option><option value="2">Твист</option><option value="3">Хаос</option></select></label></div>
+<div class="panel"><button id="go" aria-pressed="false">Танцевать</button><audio id="song" preload="auto"><source src="./song.mp3" type="audio/mpeg"></audio><label>Темп <input id="bpm" type="range" min="70" max="200" value="128"><output id="bpmv">128</output></label><label>Стиль <select id="style"><option value="0">Качалка</option><option value="1">Прыжки</option><option value="2">Твист</option><option value="3">Хаос</option></select></label></div>
 <script>
-(function(){
-const rat=document.getElementById('rat');
-const floor=document.getElementById('floor');
-const go=document.getElementById('go');
-const song=document.getElementById('song');
-const bpm=document.getElementById('bpm');
-const bpmv=document.getElementById('bpmv');
-const sty=document.getElementById('style');
-const track=document.getElementById('track');
-const fileSong=document.getElementById('fileSong');
-let on=false, startTime=0, animationId=0, customSongUrl=null;
-const reduce=window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-bpm.addEventListener('input',()=>{bpmv.textContent=bpm.value;});
-function stopDance(){
- on=false;
- if(animationId) cancelAnimationFrame(animationId);
- animationId=0;
- go.textContent='Танцевать';
- go.setAttribute('aria-pressed','false');
- song.pause();
- try{song.currentTime=0;}catch(e){}
- rat.style.transform='';
- floor.style.transform='';
-}
-function frame(){
- if(!on)return;
- const period=60/Number(bpm.value||128);
- const p=(performance.now()-startTime)/1000/period;
- const ph=p*Math.PI*2;
- const style=Number(sty.value||0);
- const k=reduce?0.25:1;
- const hit=Math.pow(Math.abs(Math.sin(p*Math.PI)),3);
- let x=0,y=0,r=0,sx=1,sy=1,ry=0;
- if(style===0){r=Math.sin(ph/2)*10*k;x=Math.sin(ph/2)*4*k;sy=1+hit*.03*k;sx=1-hit*.02*k;}
- else if(style===1){y=-hit*14*k;sy=1+hit*.06*k;sx=1-hit*.04*k;r=Math.sin(ph/2)*4*k;}
- else if(style===2){ry=Math.sin(ph/2)*35*k;r=Math.sin(ph)*5*k;y=-hit*4*k;}
- else{r=Math.sin(ph*1.5)*14*k;x=Math.sin(ph/2)*8*k;y=-Math.abs(Math.sin(ph*.75))*10*k;ry=Math.sin(ph/3)*25*k;sx=1+Math.sin(ph*2)*.04*k;sy=1-Math.sin(ph*2)*.04*k;}
- rat.style.transform='translate('+x+'vmin,'+y+'vmin) rotate('+r+'deg) rotateY('+ry+'deg) scale('+sx+','+sy+')';
- floor.style.transform='translateX('+x+'vmin) scale('+(1-y*.01)+')';
- animationId=requestAnimationFrame(frame);
-}
-go.addEventListener('click',async()=>{
- if(on){stopDance();return;}
- startTime=performance.now();
- on=true;
- go.textContent='Стоп';
- go.setAttribute('aria-pressed','true');
- animationId=requestAnimationFrame(frame);
- try{song.currentTime=0;await song.play();}
- catch(err){console.warn('Музыка не запустилась, танец продолжится без звука:',err);}
-});
-song.addEventListener('ended',stopDance);
-track.addEventListener('change',()=>{
- if(track.value==='device'){fileSong.click();return;}
- if(customSongUrl){URL.revokeObjectURL(customSongUrl);customSongUrl=null;}
- song.pause();song.src='./song.mp3';song.load();
-});
-fileSong.addEventListener('change',()=>{
- const f=fileSong.files&&fileSong.files[0];if(!f)return;
- if(customSongUrl)URL.revokeObjectURL(customSongUrl);
- customSongUrl=URL.createObjectURL(f);
- song.pause();song.src=customSongUrl;song.load();
- track.options[1].text='Выбрано: '+f.name;track.value='device';
-});
-})();
+const rat=document.getElementById('rat'),floor=document.getElementById('floor'),go=document.getElementById('go'),song=document.getElementById('song'),bpm=document.getElementById('bpm'),bpmv=document.getElementById('bpmv'),sty=document.getElementById('style');
+let on=false,t0=0,audioCtx=null,analyser=null,source=null,freqData=null,noiseFloor=0,beatPulse=0;const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;bpm.oninput=()=>bpmv.textContent=bpm.value;\nfunction setupAudio(){if(analyser)return;audioCtx=new(window.AudioContext||window.webkitAudioContext)();analyser=audioCtx.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=.65;freqData=new Uint8Array(analyser.frequencyBinCount);source=audioCtx.createMediaElementSource(song);source.connect(analyser);analyser.connect(audioCtx.destination);}
+
+function frame(){if(!on)return;if(analyser){analyser.getByteFrequencyData(freqData);let low=0;for(let i=1;i<9;i++)low+=freqData[i];low/=8;noiseFloor=noiseFloor*.96+low*.04;beatPulse=Math.max(0,Math.min(1,(low-noiseFloor-3)/24));}const period=60/bpm.value,p=(performance.now()-t0)/1000/period,ph=p*Math.PI*2,s=+sty.value,k=reduce?.25:1;let x=0,y=0,r=0,sx=1,sy=1,ry=0;const hit=Math.max(Math.pow(Math.abs(Math.sin(p*Math.PI)),3),beatPulse);
+if(s===0){r=Math.sin(ph/2)*10*k;x=Math.sin(ph/2)*4*k;sy=1+hit*.03*k;sx=1-hit*.02*k}else if(s===1){y=-hit*14*k;sy=1+hit*.06*k;sx=1-hit*.04*k;r=Math.sin(ph/2)*4*k}else if(s===2){ry=Math.sin(ph/2)*35*k;r=Math.sin(ph)*5*k;y=-hit*4*k}else{r=Math.sin(ph*1.5)*14*k;x=Math.sin(ph/2)*8*k;y=-Math.abs(Math.sin(ph*.75))*10*k;ry=Math.sin(ph/3)*25*k;sx=1+Math.sin(ph*2)*.04*k;sy=1-Math.sin(ph*2)*.04*k}
+rat.style.transform=`translate(${x}vmin,${y}vmin) rotate(${r}deg) rotateY(${ry}deg) scale(${sx},${sy})`;floor.style.transform=`translateX(${x}vmin) scale(${1-y*.01})`;requestAnimationFrame(frame)}
+go.onclick=()=>{if(!on){setupAudio();audioCtx.resume();t0=performance.now();on=true;go.textContent='Стоп';go.setAttribute('aria-pressed','true');song.currentTime=0;song.play().catch(err=>console.warn('Не удалось запустить song.mp3:',err));requestAnimationFrame(frame)}else{on=false;go.textContent='Танцевать';go.setAttribute('aria-pressed','false');song.pause();song.currentTime=0;rat.style.transform='';floor.style.transform=''}};
 </script></body></html>
