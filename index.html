@@ -5,16 +5,15 @@
 *{box-sizing:border-box}html,body{height:100%;margin:0}body{font-family:"Trebuchet MS",sans-serif;color:var(--ink);background:#fff;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
 #intro{position:absolute;z-index:1;left:50%;top:68%;transform:translate(-50%,-50%);width:min(32vw,160px);max-height:35%;object-fit:contain;display:none;pointer-events:none;filter:drop-shadow(0 8px 18px #0005)}
 .stage{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;perspective:900px;position:relative;min-height:0}.floor{position:absolute;bottom:2%;width:40vmin;height:5vmin;border-radius:50%;background:#0003;filter:blur(6px);transition:transform .1s}
-#ratWrap{height:78%;max-height:80vh;width:auto;max-width:90vw;position:relative;display:flex;align-items:flex-end;justify-content:center;transform-origin:50% 95%;will-change:transform;user-select:none}#rat{height:100%;max-height:100%;width:auto;max-width:100%;object-fit:contain;user-select:none}#mouth{position:absolute;left:35%;top:34%;width:12%;height:2.5%;transform:translate(-50%,-50%) scaleY(.08);transform-origin:center;border-radius:48% 48% 55% 55%;background:radial-gradient(ellipse at 50% 20%,#3b101d 0%,#641b30 62%,#9b4055 100%);box-shadow:0 0 0 1px #b85b6c,inset 0 1px 2px #16050b;opacity:0;pointer-events:none;transition:transform .07s linear,opacity .12s}
+#ratWrap{height:78%;max-height:80vh;width:auto;max-width:90vw;position:relative;display:flex;align-items:flex-end;justify-content:center;transform-origin:50% 95%;will-change:transform;user-select:none}#rat{height:100%;max-height:100%;width:auto;max-width:100%;object-fit:contain;user-select:none}
 audio{display:none}.panel{position:relative;z-index:10;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:center;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));width:100%}
 button{font:inherit;font-weight:700;background:var(--btn);color:var(--btnink);border:0;border-radius:999px;padding:12px 26px}label{display:flex;align-items:center;gap:8px;font-size:15px}input[type=range]{width:140px;accent-color:var(--btn)}select{font:inherit;padding:8px;border-radius:8px;border:2px solid var(--btn);background:transparent;color:var(--ink)}
-</style></head><body><div class="stage"><img id="intro" src="./intro.gif" alt="" aria-hidden="true"><div class="floor" id="floor"></div><div id="ratWrap"><img id="rat" src="https://raw.githubusercontent.com/litvinov57alex-bot/dancing-rat-telegram/main/rat.png" alt="Исходная розовая крыса с человеческим лицом"><div id="mouth" aria-hidden="true"></div></div></div>
+</style></head><body><div class="stage"><img id="intro" src="./intro.gif" alt="" aria-hidden="true"><div class="floor" id="floor"></div><div id="ratWrap"><img id="rat" src="https://raw.githubusercontent.com/litvinov57alex-bot/dancing-rat-telegram/main/rat.png" alt="Исходная розовая крыса с человеческим лицом"></div></div>
 <div class="panel"><button id="go" aria-pressed="false">Танцевать</button><audio id="song" preload="auto"><source src="./Gazan%20-%2067%20%28hitmo.net%29.mp3" type="audio/mpeg"></audio><label>Темп <input id="bpm" type="range" min="70" max="200" value="128"><output id="bpmv">128</output></label><label>Стиль <select id="style"><option value="0">Качалка</option><option value="1">Прыжки</option><option value="2">Твист</option><option value="3">Хаос</option></select></label></div>
 <script>
 (() => {
   const rat = document.getElementById('rat');
   const ratWrap = document.getElementById('ratWrap');
-  const mouth = document.getElementById('mouth');
   const floor = document.getElementById('floor');
   const go = document.getElementById('go');
   const song = document.getElementById('song');
@@ -25,36 +24,6 @@ button{font:inherit;font-weight:700;background:var(--btn);color:var(--btnink);bo
   const bpmv = document.getElementById('bpmv');
   const sty = document.getElementById('style');
   let dancing = false;
-  let audioContext = null, analyser = null, audioSource = null, audioFrame = null;
-  const audioData = new Uint8Array(64);
-
-  function sing() {
-    if (!dancing || !analyser) { mouth.style.opacity = '0'; return; }
-    analyser.getByteFrequencyData(audioData);
-    let level = 0;
-    for (let i = 0; i < audioData.length; i++) level += audioData[i];
-    level = level / audioData.length / 255;
-    const opening = Math.min(1.35, Math.max(.08, level * 5.2));
-    mouth.style.opacity = String(Math.min(.92, level * 2.8));
-    mouth.style.transform = 'translate(-50%,-50%) scaleY(' + opening + ')';
-    audioFrame = requestAnimationFrame(sing);
-  }
-
-  function startSinging() {
-    try {
-      if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioContext.createAnalyser();
-        analyser.fftSize = 128;
-        audioSource = audioContext.createMediaElementSource(song);
-        audioSource.connect(analyser);
-        analyser.connect(audioContext.destination);
-      }
-      audioContext.resume();
-      cancelAnimationFrame(audioFrame);
-      sing();
-    } catch (error) { console.warn('Анимация пения недоступна:', error); }
-  }
   let startedAt = 0;
   const reducedMotion = window.matchMedia
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -118,13 +87,10 @@ button{font:inherit;font-weight:700;background:var(--btn);color:var(--btnink);bo
       go.textContent = 'Стоп';
       go.setAttribute('aria-pressed', 'true');
       song.currentTime = 0;
-      song.play().then(startSinging).catch(error => console.warn('Не удалось запустить песню 67:', error));
+      song.play().catch(error => console.warn('Не удалось запустить песню 67:', error));
       window.requestAnimationFrame(animate);
     } else {
       dancing = false;
-      cancelAnimationFrame(audioFrame);
-      mouth.style.opacity = '0';
-      mouth.style.transform = 'translate(-50%,-50%) scaleY(.18)';
       clearTimeout(introTimer);
       intro.style.display = 'none';
       if (savedBpm !== null) { bpm.value = savedBpm; bpmv.textContent = savedBpm; savedBpm = null; }
